@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_community.retrievers import BM25Retriever   # ← pure Python, no API
+from langchain_community.retrievers import BM25Retriever
 import tempfile
 
 st.title("🚀 RAG PDF Chatbot (100% Free)")
@@ -46,7 +46,6 @@ if uploaded_files and st.session_state.retriever is None:
 
         docs = splitter.split_documents(all_docs)
 
-        # BM25 — pure Python, no embeddings, no API, no install issues
         retriever = BM25Retriever.from_documents(docs)
         retriever.k = 4
 
@@ -55,7 +54,7 @@ if uploaded_files and st.session_state.retriever is None:
 
 # --- Free Gemini LLM ---
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-2.0-flash",                    # ← fixed model name
     google_api_key=st.secrets["GOOGLE_API_KEY"],
     temperature=0.3
 )
