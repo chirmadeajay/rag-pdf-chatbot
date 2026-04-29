@@ -132,7 +132,7 @@ def generate_chat_export():
         ""
     ]
     for msg in st.session_state.messages:
-        role = "🧑 You" if msg["role"] == "user" else "🤖 Assistant"
+        role = "You" if msg["role"] == "user" else "🤖 Assistant"
         lines.append(f"{role}:")
         lines.append(msg["content"])
         lines.append("-" * 40)
@@ -156,7 +156,7 @@ def reset_app():
 # ─────────────────────────────────────────
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/pdf-2.png", width=60)
-    st.title("📁 PDF Manager")
+    st.title("PDF Manager")
     st.markdown("---")
 
     uploaded_files = st.file_uploader(
@@ -169,26 +169,26 @@ with st.sidebar:
     st.markdown("---")
 
     if st.session_state.retriever:
-        st.success("✅ PDFs ready to chat!")
+        st.success("PDFs ready to chat!")
 
-        st.markdown("**📋 Loaded Files:**")
+        st.markdown("**Loaded Files:**")
         for fname in st.session_state.uploaded_file_names:
-            st.markdown(f"- 📄 `{fname}`")
+            st.markdown(f"- `{fname}`")
 
         st.markdown("---")
 
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("💬 Questions", st.session_state.question_count)
+            st.metric("Questions", st.session_state.question_count)
         with col2:
-            st.metric("📄 Files", len(st.session_state.uploaded_file_names))
+            st.metric("Files", len(st.session_state.uploaded_file_names))
 
         st.markdown("---")
 
         # ── NEW: Activity log section ──
         # Shows a live feed of what the app has done
         if st.session_state.activity_log:
-            st.markdown("**🕐 Activity Log:**")
+            st.markdown("**Activity Log:**")
             for entry in reversed(st.session_state.activity_log):
                 st.markdown(
                     f"<div class='log-entry'>{entry}</div>",
@@ -199,23 +199,23 @@ with st.sidebar:
         if st.session_state.messages:
             chat_text = generate_chat_export()
             st.download_button(
-                label="⬇️ Download Chat",
+                label="Download Chat",
                 data=chat_text,
                 file_name=f"chat_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                 mime="text/plain"
             )
 
-        if st.button("🗑️ Clear Chat Only"):
+        if st.button("Clear Chat Only"):
             st.session_state.messages = []
             st.session_state.question_count = 0
             log_activity("Chat cleared")
             st.rerun()
 
-        if st.button("🔄 Upload New PDFs"):
+        if st.button("Upload New PDFs"):
             reset_app()
 
     else:
-        st.info("👆 Upload PDFs to get started")
+        st.info("Upload PDFs to get started")
 
     st.markdown("---")
     st.caption("Built with Streamlit + Groq + BM25")
@@ -226,7 +226,7 @@ with st.sidebar:
 # ─────────────────────────────────────────
 st.markdown("""
     <h1 style='text-align: center; color: #7eb8f7;'>
-        🚀 RAG PDF Chatbot
+        RAG PDF Chatbot
     </h1>
     <p style='text-align: center; color: #888;'>
         Upload PDFs in the sidebar → Ask questions below
@@ -247,7 +247,7 @@ if uploaded_files and st.session_state.retriever is None:
     with st.status("📄 Processing your PDFs...", expanded=True) as status:
         all_docs = []
 
-        st.write("📂 Reading PDF files...")
+        st.write("Reading PDF files...")
         for file in uploaded_files:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(file.read())
@@ -260,7 +260,7 @@ if uploaded_files and st.session_state.retriever is None:
                 doc.metadata["source"] = file.name
 
             all_docs.extend(loaded_docs)
-            st.write(f"  ✅ Read: `{file.name}` ({len(loaded_docs)} pages)")
+            st.write(f" Read: `{file.name}` ({len(loaded_docs)} pages)")
 
         st.write("✂️ Splitting into chunks...")
         splitter = RecursiveCharacterTextSplitter(
@@ -268,19 +268,19 @@ if uploaded_files and st.session_state.retriever is None:
             chunk_overlap=100
         )
         docs = splitter.split_documents(all_docs)
-        st.write(f"  ✅ Created {len(docs)} text chunks")
+        st.write(f" Created {len(docs)} text chunks")
 
         st.write("🔍 Building search index...")
         retriever = BM25Retriever.from_documents(docs)
         retriever.k = 6
-        st.write("  ✅ BM25 index ready")
+        st.write("BM25 index ready")
 
         st.session_state.retriever = retriever
         st.session_state.uploaded_file_names = [f.name for f in uploaded_files]
 
         # Mark the status box as complete — turns green
         status.update(
-            label=f"✅ {len(uploaded_files)} PDF(s) indexed successfully!",
+            label=f"{len(uploaded_files)} PDF(s) indexed successfully!",
             state="complete",
             expanded=False
         )
@@ -312,9 +312,9 @@ if not st.session_state.retriever:
             </p>
             <br>
             <p style='color: #555; font-size: 14px;'>
-                ✅ Supports multiple PDFs &nbsp;|&nbsp;
-                ✅ Remembers conversation &nbsp;|&nbsp;
-                ✅ Shows sources
+                Supports multiple PDFs &nbsp;|&nbsp;
+                Remembers conversation &nbsp;|&nbsp;
+                Shows sources
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -334,7 +334,7 @@ for msg in st.session_state.messages:
 if query := st.chat_input("💬 Ask anything about your documents..."):
 
     if st.session_state.retriever is None:
-        st.warning("⚠️ Please upload at least one PDF using the sidebar.")
+        st.warning("Please upload at least one PDF using the sidebar.")
 
     else:
         st.chat_message("user").write(query)
@@ -351,7 +351,7 @@ if query := st.chat_input("💬 Ask anything about your documents..."):
         step_placeholder = st.empty()
 
         # STEP 1: Show searching message
-        step_placeholder.info("🔍 Step 1/3 — Searching your documents...")
+        step_placeholder.info("Step 1/3 — Searching your documents...")
         time.sleep(0.3)   # tiny pause so user can read it
 
         retrieved_docs = st.session_state.retriever.invoke(query)
@@ -365,7 +365,7 @@ if query := st.chat_input("💬 Ask anything about your documents..."):
             context += doc.page_content + "\n\n"
             page = doc.metadata.get("page", "Unknown")
             source = doc.metadata.get("source", "Unknown file")
-            sources.append(f"📄 {source} — Page {page}")
+            sources.append(f"{source} — Page {page}")
 
             # Save first 200 characters of each chunk for preview
             # This is what gets shown in the "What was found" section
@@ -376,7 +376,7 @@ if query := st.chat_input("💬 Ask anything about your documents..."):
             })
 
         # STEP 2: Building prompt message
-        step_placeholder.info("🧠 Step 2/3 — Building context for AI...")
+        step_placeholder.info("Step 2/3 — Building context for AI...")
         time.sleep(0.3)
 
         # ── NEW: Estimate token count ──
@@ -413,7 +413,7 @@ USER QUESTION: {query}
 YOUR ANSWER:"""
 
         # STEP 3: Generating answer
-        step_placeholder.info("⚡ Step 3/3 — Generating answer...")
+        step_placeholder.info("Step 3/3 — Generating answer...")
 
         # Record start time to measure speed
         start_time = time.time()
@@ -438,21 +438,21 @@ YOUR ANSWER:"""
             # Shows token estimate and time taken
             st.markdown(
                 f"<div style='font-size:12px; color:#555; margin-top:8px;'>"
-                f"⏱️ {elapsed}s &nbsp;|&nbsp; "
-                f"📊 ~{estimated_tokens} tokens used &nbsp;|&nbsp; "
-                f"📎 {len(retrieved_docs)} chunks retrieved"
+                f"{elapsed}s &nbsp;|&nbsp; "
+                f"~{estimated_tokens} tokens used &nbsp;|&nbsp; "
+                f"{len(retrieved_docs)} chunks retrieved"
                 f"</div>",
                 unsafe_allow_html=True
             )
 
             # ── NEW: Chunk preview expander ──
             # Shows the actual text that was found and used
-            with st.expander("🔎 What was found in your PDFs"):
+            with st.expander("What was found in your PDFs"):
                 for i, chunk in enumerate(chunk_previews):
                     st.markdown(
                         f"<div class='chunk-card'>"
                         f"<strong>Chunk {i+1}</strong> — "
-                        f"📄 {chunk['source']} | Page {chunk['page']}<br><br>"
+                        f"{chunk['source']} | Page {chunk['page']}<br><br>"
                         f"{chunk['preview']}"
                         f"</div>",
                         unsafe_allow_html=True
@@ -460,7 +460,7 @@ YOUR ANSWER:"""
 
             # Sources expander
             unique_sources = sorted(list(set(sources)))
-            with st.expander("📚 View Sources"):
+            with st.expander("View Sources"):
                 for src in unique_sources:
                     st.markdown(f"- {src}")
 
