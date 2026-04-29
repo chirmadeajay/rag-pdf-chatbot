@@ -3,7 +3,8 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
-from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
+
 import tempfile
 import os
 
@@ -24,10 +25,7 @@ uploaded_files = st.file_uploader(
 )
 
 # Embeddings
-embeddings = OpenAIEmbeddings(
-    model="text-embedding-3-small",
-    api_key=st.secrets["OPENAI_API_KEY"]
-)
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # Process uploaded PDFs
 if uploaded_files and st.session_state.db is None:
@@ -71,8 +69,13 @@ if st.session_state.db is None and os.path.exists(PERSIST_DIR):
 
 # OpenAI LLM
 llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    api_key=st.secrets["OPENAI_API_KEY"]
+    model="mistralai/mistral-7b-instruct:free",
+    api_key=st.secrets["OPENROUTER_API_KEY"],
+    base_url="https://openrouter.ai/api/v1",
+    default_headers={
+        "HTTP-Referer": "https://your-streamlit-app-url.streamlit.app",
+        "X-Title": "RAG PDF Chatbot"
+    }
 )
 
 # Show chat history
