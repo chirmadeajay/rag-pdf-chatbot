@@ -5,3 +5,4 @@ langchain-core
 langchain-text-splitters
 langchain-google-genai
 pypdf
+rank_bm25
