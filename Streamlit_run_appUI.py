@@ -52,7 +52,7 @@ st.markdown("""
 # ─────────────────────────────────────────
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/pdf-2.png", width=60)
-    st.title("📁 Upload PDFs")
+    st.title("Upload PDFs")
     st.markdown("---")
 
     uploaded_files = st.file_uploader(
@@ -65,7 +65,7 @@ with st.sidebar:
     st.markdown("---")
 
     if st.session_state.get("retriever"):
-        st.success("✅ PDFs ready to chat!")
+        st.success("PDFs ready to chat!")
 
         # ── NEW: Clear chat button in sidebar ──
         # Lets user reset without refreshing page
@@ -73,7 +73,7 @@ with st.sidebar:
             st.session_state.messages = []
             st.rerun()
     else:
-        st.info("👆 Upload PDFs to get started")
+        st.info("Upload PDFs to get started")
 
     st.markdown("---")
     st.caption("Built with Streamlit + Groq + BM25")
@@ -84,7 +84,7 @@ with st.sidebar:
 # ─────────────────────────────────────────
 st.markdown("""
     <h1 style='text-align: center; color: #7eb8f7;'>
-        🚀 RAG PDF Chatbot
+        RAG PDF Chatbot
     </h1>
     <p style='text-align: center; color: #888;'>
         Upload PDFs in the sidebar → Ask questions below
@@ -136,7 +136,7 @@ if uploaded_files and st.session_state.retriever is None:
         retriever.k = 6           # ← was 4, more chunks = richer context
 
         st.session_state.retriever = retriever
-        st.sidebar.success(f"✅ {len(uploaded_files)} PDF(s) indexed!")
+        st.sidebar.success(f" {len(uploaded_files)} PDF(s) indexed!")
 
 
 # ─────────────────────────────────────────
@@ -165,7 +165,7 @@ for msg in st.session_state.messages:
 if query := st.chat_input("💬 Ask anything about your documents..."):
 
     if st.session_state.retriever is None:
-        st.warning("⚠️ Please upload at least one PDF using the sidebar.")
+        st.warning("Please upload at least one PDF using the sidebar.")
 
     else:
         st.chat_message("user").write(query)
@@ -226,7 +226,7 @@ YOUR ANSWER:"""
             full_answer = ""
 
             # stream=True makes it stream word by word
-            with st.spinner("🤔 Thinking..."):
+            with st.spinner("Thinking..."):
                 stream = llm.stream(prompt)
 
             for chunk in stream:
@@ -239,7 +239,7 @@ YOUR ANSWER:"""
 
             # Show sources in expander
             unique_sources = sorted(list(set(sources)))
-            with st.expander("📚 View Sources"):
+            with st.expander("View Sources"):
                 for src in unique_sources:
                     st.markdown(f"- {src}")
 
