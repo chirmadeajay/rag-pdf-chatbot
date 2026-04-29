@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_community.retrievers import BM25Retriever
 import tempfile
 
@@ -52,10 +52,10 @@ if uploaded_files and st.session_state.retriever is None:
         st.session_state.retriever = retriever
         st.success("✅ PDFs indexed successfully!")
 
-# --- Free Gemini LLM ---
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash",                    # ← fixed model name
-    google_api_key=st.secrets["GOOGLE_API_KEY"],
+# --- Free Groq LLM (no quota issues) ---
+llm = ChatGroq(
+    model="llama3-8b-8192",                      # ← free, fast, no quota issues
+    api_key=st.secrets["GROQ_API_KEY"],
     temperature=0.3
 )
 
