@@ -6,8 +6,7 @@ from langchain_community.retrievers import BM25Retriever
 import tempfile
 
 # ─────────────────────────────────────────
-# PAGE CONFIG — must be first streamlit call
-# Sets browser tab title, icon, and wide layout
+# PAGE CONFIG
 # ─────────────────────────────────────────
 st.set_page_config(
     page_title="RAG PDF Chatbot",
@@ -16,58 +15,40 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────
-# CUSTOM CSS — makes the app look polished
-# This is just styling, like CSS in a website
+# CUSTOM CSS
 # ─────────────────────────────────────────
 st.markdown("""
     <style>
-        /* Main background */
-        .stApp {
-            background-color: #0f1117;
-        }
+        .stApp { background-color: #0f1117; }
 
-        /* Sidebar background */
         [data-testid="stSidebar"] {
             background-color: #1a1c24;
             padding: 20px;
         }
-
-        /* Chat input box */
         [data-testid="stChatInput"] textarea {
             background-color: #1e2030;
             color: white;
             border-radius: 12px;
         }
-
-        /* User message bubble */
-        [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+        [data-testid="stChatMessage"]:has(
+            [data-testid="chatAvatarIcon-user"]) {
             background-color: #1e2030;
             border-radius: 12px;
             padding: 10px;
         }
-
-        /* Assistant message bubble */
-        [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+        [data-testid="stChatMessage"]:has(
+            [data-testid="chatAvatarIcon-assistant"]) {
             background-color: #161822;
             border-radius: 12px;
             padding: 10px;
         }
-
-        /* Success message */
-        .stSuccess {
-            background-color: #1a3a2a;
-            border-radius: 8px;
-        }
-
-        /* Hide default streamlit footer */
-        footer {visibility: hidden;}
+        footer { visibility: hidden; }
     </style>
 """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────
-# SIDEBAR — PDF upload lives here
-# Keeps the main chat screen clean
+# SIDEBAR
 # ─────────────────────────────────────────
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/pdf-2.png", width=60)
@@ -83,9 +64,14 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Show how many files are loaded
     if st.session_state.get("retriever"):
-        st.success(f"✅ PDFs ready to chat!")
+        st.success("✅ PDFs ready to chat!")
+
+        # ── NEW: Clear chat button in sidebar ──
+        # Lets user reset without refreshing page
+        if st.button("🗑️ Clear Chat"):
+            st.session_state.messages = []
+            st.rerun()
     else:
         st.info("👆 Upload PDFs to get started")
 
@@ -94,7 +80,7 @@ with st.sidebar:
 
 
 # ─────────────────────────────────────────
-# MAIN AREA HEADER
+# MAIN HEADER
 # ─────────────────────────────────────────
 st.markdown("""
     <h1 style='text-align: center; color: #7eb8f7;'>
@@ -108,8 +94,7 @@ st.markdown("""
 
 
 # ─────────────────────────────────────────
-# SESSION STATE — stores data between reruns
-# Think of it like short-term memory
+# SESSION STATE
 # ─────────────────────────────────────────
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -120,7 +105,8 @@ if "retriever" not in st.session_state:
 
 # ─────────────────────────────────────────
 # PROCESS UPLOADED PDFs
-# Runs only when new files are uploaded
+# CHANGE: chunk_size 500→800 so sentences
+# are not cut off in the middle
 # ─────────────────────────────────────────
 if uploaded_files and st.session_state.retriever is None:
     with st.spinner("📄 Reading and indexing your PDFs..."):
@@ -140,32 +126,33 @@ if uploaded_files and st.session_state.retriever is None:
             all_docs.extend(loaded_docs)
 
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50
+            chunk_size=800,       # ← was 500, bigger = more complete ideas
+            chunk_overlap=100     # ← was 50, more overlap = less info lost
         )
 
         docs = splitter.split_documents(all_docs)
 
         retriever = BM25Retriever.from_documents(docs)
-        retriever.k = 4
+        retriever.k = 6           # ← was 4, more chunks = richer context
 
         st.session_state.retriever = retriever
         st.sidebar.success(f"✅ {len(uploaded_files)} PDF(s) indexed!")
 
 
 # ─────────────────────────────────────────
-# GROQ LLM SETUP
+# GROQ LLM
+# CHANGE: temperature 0.3→0.1
+# Lower = more focused, less random answers
 # ─────────────────────────────────────────
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
     api_key=st.secrets["GROQ_API_KEY"],
-    temperature=0.3
+    temperature=0.1               # ← was 0.3, more precise now
 )
 
 
 # ─────────────────────────────────────────
 # DISPLAY CHAT HISTORY
-# Shows all previous messages when page reruns
 # ─────────────────────────────────────────
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -173,15 +160,14 @@ for msg in st.session_state.messages:
 
 
 # ─────────────────────────────────────────
-# CHAT INPUT + RESPONSE LOGIC
+# CHAT INPUT + RESPONSE
 # ─────────────────────────────────────────
 if query := st.chat_input("💬 Ask anything about your documents..."):
 
     if st.session_state.retriever is None:
-        st.warning("⚠️ Please upload at least one PDF first using the sidebar.")
+        st.warning("⚠️ Please upload at least one PDF using the sidebar.")
 
     else:
-        # Show user message
         st.chat_message("user").write(query)
         st.session_state.messages.append({
             "role": "user",
@@ -200,37 +186,58 @@ if query := st.chat_input("💬 Ask anything about your documents..."):
             source = doc.metadata.get("source", "Unknown file")
             sources.append(f"📄 {source} — Page {page}")
 
-        history = "\n".join([
-            m["content"] for m in st.session_state.messages
+        # ── NEW: Only pass last 5 messages as history ──
+        # Why: Sending ALL history makes prompt too long
+        # Last 5 is enough to remember recent context
+        recent_history = st.session_state.messages[-5:]
+        history_text = "\n".join([
+            f"{m['role'].upper()}: {m['content']}"
+            for m in recent_history
         ])
 
-        prompt = f"""
-You are an expert assistant.
+        # ── NEW: Much better prompt structure ──
+        # Clear rules = AI follows them better
+        prompt = f"""You are a precise document assistant.
+Your job is to answer questions using ONLY the document context below.
 
-Use ONLY the provided context.
-If the answer is not in the context, say:
-"I could not find this in the uploaded documents."
+STRICT RULES:
+1. Only use information from the CONTEXT section
+2. If the answer is not in the context, say exactly:
+   "I could not find this in the uploaded documents."
+3. Keep answers clear and well structured
+4. If quoting from document, mention the source name
+5. Never make up or assume information
 
-Chat History:
-{history}
+RECENT CONVERSATION:
+{history_text}
 
-Context:
+CONTEXT FROM DOCUMENTS:
 {context}
 
-Question:
-{query}
-"""
+USER QUESTION: {query}
 
-        # Show assistant response
+YOUR ANSWER:"""
+
+        # ── NEW: Streaming response ──
+        # Instead of waiting for full answer,
+        # words appear one by one like ChatGPT
         with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            full_answer = ""
+
+            # stream=True makes it stream word by word
             with st.spinner("🤔 Thinking..."):
-                response = llm.invoke(prompt)
-                answer = response.content
+                stream = llm.stream(prompt)
 
-            st.write(answer)
+            for chunk in stream:
+                # Each chunk is a small piece of the answer
+                full_answer += chunk.content
+                response_placeholder.markdown(full_answer + "▌")
 
-            # Show sources in a neat expander
-            # Expander = collapsed section user can click to open
+            # Remove the blinking cursor at the end
+            response_placeholder.markdown(full_answer)
+
+            # Show sources in expander
             unique_sources = sorted(list(set(sources)))
             with st.expander("📚 View Sources"):
                 for src in unique_sources:
@@ -238,5 +245,5 @@ Question:
 
         st.session_state.messages.append({
             "role": "assistant",
-            "content": answer
+            "content": full_answer
         })
