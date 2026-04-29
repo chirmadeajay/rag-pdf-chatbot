@@ -46,11 +46,36 @@ FastAPI backend for production deployment
 Docker containerization
 Cloud deployment (AWS / GCP / Render)
 
+ # Future Improvements
+
+- **Hybrid Retrieval (BM25 + Vector Search)**  
+  Combine keyword-based (BM25) and semantic (embedding) search to improve recall and answer accuracy
+
+- **Reranking with Cross-Encoders**  
+  Apply a second-stage reranker to reorder retrieved chunks based on relevance to the query
+
+- **FastAPI Backend (Production API)**  
+  Expose the RAG pipeline as REST endpoints for scalable integration with other applications
+
+- **Dockerization**  
+  Containerize the application for consistent environments and easy deployment
+
+- **Cloud Deployment**  
+  Deploy on AWS / GCP / Render with persistent vector storage and scalable inference
+
+- **RAG Evaluation Pipeline**  
+  Measure retrieval quality, response accuracy, and hallucination rates using test datasets
+
+- **Caching & Performance Optimization**  
+  Add response caching and optimize latency for faster query handling
+
+- **Authentication & Multi-User Support**  
+  Enable secure access and user-specific document sessions
+
 # Connect With Me
   Ajay Chirmade
   Pune, India
   LinkedIn: linkedin.com/in/ajay-chirmade-470b64105
- 
   GitHub: https://github.com/chirmadeajay
 
 ⭐ If you like this project
