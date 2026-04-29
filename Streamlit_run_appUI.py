@@ -1,111 +1,102 @@
 import streamlit as st
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings   # ← changed
-from langchain_community.vectorstores import FAISS
+from pypdf import PdfReader
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from langchain_openai import ChatOpenAI
 import tempfile
 
-st.title("🚀 Production RAG App (Multi-PDF + Memory + Sources)")
+st.title("🚀 RAG PDF Chatbot - OpenRouter Free Version")
 
-# --- Session State Init ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "db" not in st.session_state:
-    st.session_state.db = None
+if "chunks" not in st.session_state:
+    st.session_state.chunks = []
 
-if "embeddings" not in st.session_state:
-    st.session_state.embeddings = OpenAIEmbeddings(         # ← changed
-        api_key=st.secrets["OPENAI_API_KEY"]
-    )
+if "sources" not in st.session_state:
+    st.session_state.sources = []
 
-# --- File Uploader ---
+def split_text(text, chunk_size=700, overlap=100):
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start = end - overlap
+
+    return chunks
+
 uploaded_files = st.file_uploader(
     "Upload PDFs",
     type="pdf",
     accept_multiple_files=True
 )
 
-# --- Process Uploaded PDFs ---
-if uploaded_files and st.session_state.db is None:
-    all_docs = []
-
+if uploaded_files and not st.session_state.chunks:
     for file in uploaded_files:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            tmp.write(file.read())
-            file_path = tmp.name
+        reader = PdfReader(file)
 
-        loader = PyPDFLoader(file_path)
-        loaded_docs = loader.load()
+        for page_num, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            page_chunks = split_text(text)
 
-        for doc in loaded_docs:
-            doc.metadata["source"] = file.name
+            for chunk in page_chunks:
+                if chunk.strip():
+                    st.session_state.chunks.append(chunk)
+                    st.session_state.sources.append(
+                        f"{file.name} - Page {page_num + 1}"
+                    )
 
-        all_docs.extend(loaded_docs)
+    st.success("✅ PDFs processed successfully!")
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50
-    )
-
-    docs = splitter.split_documents(all_docs)
-
-    db = FAISS.from_documents(
-        docs,
-        embedding=st.session_state.embeddings
-    )
-
-    st.session_state.db = db
-    st.success("✅ PDFs indexed successfully!")
-
-# --- OpenAI LLM ---
 llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    api_key=st.secrets["OPENAI_API_KEY"]
+    model="mistralai/mistral-7b-instruct:free",
+    api_key=st.secrets["OPENROUTER_API_KEY"],
+    base_url="https://openrouter.ai/api/v1"
 )
 
-# --- Show Chat History ---
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# --- Chat Input ---
-if query := st.chat_input("Ask anything about your documents"):
+if query := st.chat_input("Ask anything about your PDFs"):
 
-    if st.session_state.db is None:
-        st.warning("⚠️ Please upload at least one PDF first.")
+    if not st.session_state.chunks:
+        st.warning("⚠️ Please upload PDFs first")
 
     else:
         st.chat_message("user").write(query)
-
         st.session_state.messages.append({
             "role": "user",
             "content": query
         })
 
-        retriever = st.session_state.db.as_retriever(
-            search_kwargs={"k": 4}
-        )
+        vectorizer = TfidfVectorizer()
+        vectors = vectorizer.fit_transform(st.session_state.chunks + [query])
 
-        retrieved_docs = retriever.invoke(query)
+        similarities = cosine_similarity(
+            vectors[-1],
+            vectors[:-1]
+        ).flatten()
+
+        top_indexes = similarities.argsort()[-4:][::-1]
 
         context = ""
-        sources = []
+        used_sources = []
 
-        for doc in retrieved_docs:
-            context += doc.page_content + "\n\n"
-            page = doc.metadata.get("page", "Unknown")
-            source = doc.metadata.get("source", "Unknown file")
-            sources.append(f"{source} - Page {page}")
+        for idx in top_indexes:
+            context += st.session_state.chunks[idx] + "\n\n"
+            used_sources.append(st.session_state.sources[idx])
 
         history = "\n".join([
             m["content"] for m in st.session_state.messages
         ])
 
         prompt = f"""
-You are an expert assistant.
+You are a helpful RAG assistant.
 
-Use ONLY the provided context.
+Use ONLY the context below.
 If the answer is not in the context, say:
 "I could not find this in the uploaded documents."
 
@@ -125,9 +116,8 @@ Question:
         with st.chat_message("assistant"):
             st.write(answer)
 
-            unique_sources = sorted(list(set(sources)))
-            st.markdown("### 📊 Sources:")
-            for src in unique_sources:
+            st.markdown("### 📊 Sources")
+            for src in sorted(set(used_sources)):
                 st.write("-", src)
 
         st.session_state.messages.append({
