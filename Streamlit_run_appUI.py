@@ -52,9 +52,9 @@ if uploaded_files and st.session_state.retriever is None:
         st.session_state.retriever = retriever
         st.success("✅ PDFs indexed successfully!")
 
-# --- Free Groq LLM (no quota issues) ---
+# --- Free Groq LLM ---
 llm = ChatGroq(
-    model="llama3-8b-8192",                      # ← free, fast, no quota issues
+    model="llama-3.1-8b-instant",               # ← updated active model
     api_key=st.secrets["GROQ_API_KEY"],
     temperature=0.3
 )
