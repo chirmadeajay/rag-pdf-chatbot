@@ -1,33 +1,33 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-
+from langchain_community.vectorstores import Chroma
+from langchain_openai import ChatOpenAI
 import tempfile
-import os
 
 st.title("🚀 Production RAG App (Multi-PDF + Memory + Sources)")
 
+# --- Session State Init ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "db" not in st.session_state:
     st.session_state.db = None
 
-PERSIST_DIR = "chroma_db"
+if "embeddings" not in st.session_state:
+    st.session_state.embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
+    )
 
+# --- File Uploader ---
 uploaded_files = st.file_uploader(
     "Upload PDFs",
     type="pdf",
     accept_multiple_files=True
 )
 
-# Embeddings
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-# Process uploaded PDFs
+# --- Process Uploaded PDFs ---
 if uploaded_files and st.session_state.db is None:
     all_docs = []
 
@@ -50,44 +50,32 @@ if uploaded_files and st.session_state.db is None:
     )
 
     docs = splitter.split_documents(all_docs)
-    st.write("App reached here ✅")
+
+    # In-memory Chroma (no persist_directory — works on Streamlit Cloud)
     db = Chroma.from_documents(
         docs,
-        embedding=embeddings,
-        persist_directory=PERSIST_DIR
+        embedding=st.session_state.embeddings
     )
 
     st.session_state.db = db
-    st.success("✅ PDFs indexed and saved!")
+    st.success("✅ PDFs indexed successfully!")
 
-# Load existing DB if available
-if st.session_state.db is None and os.path.exists(PERSIST_DIR):
-    st.session_state.db = Chroma(
-        persist_directory=PERSIST_DIR,
-        embedding_function=embeddings
-    )
-
-# OpenAI LLM
+# --- OpenAI LLM ---
 llm = ChatOpenAI(
-    model="mistralai/mistral-7b-instruct:free",
-    api_key=st.secrets["OPENROUTER_API_KEY"],
-    base_url="https://openrouter.ai/api/v1",
-    default_headers={
-        "HTTP-Referer": "https://your-streamlit-app-url.streamlit.app",
-        "X-Title": "RAG PDF Chatbot"
-    }
+    model="gpt-4o-mini",
+    api_key=st.secrets["OPENAI_API_KEY"]
 )
 
-# Show chat history
+# --- Show Chat History ---
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# Chat input
+# --- Chat Input ---
 if query := st.chat_input("Ask anything about your documents"):
 
     if st.session_state.db is None:
-        st.warning("⚠️ Upload PDFs first")
+        st.warning("⚠️ Please upload at least one PDF first.")
 
     else:
         st.chat_message("user").write(query)
