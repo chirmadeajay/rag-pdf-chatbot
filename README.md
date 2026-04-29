@@ -1,1 +1,58 @@
-A production-ready RAG (Retrieval-Augmented Generation) PDF chatbot built with Streamlit, LangChain, and Groq (LLaMA 3.1). Upload multiple PDFs and ask questions about their content using BM25 retrieval and a free LLM. Features include streaming responses, chat history, source citations, chunk previews, activity log, and chat export — all 100% free to run.
+# RAG Document QA System
+
+An intelligent **Retrieval-Augmented Generation (RAG)** system that allows users to upload PDFs and ask questions with accurate, source-grounded answers.
+
+Built using **LangChain, OpenRouter (LLMs), ChromaDB (vector database), and Streamlit UI**.
+
+---
+
+# Features
+
+-  Multi-PDF document support  
+-  Semantic search using embeddings + vector database  
+-  Context-aware answers using LLMs (OpenRouter)  
+-  Real-time streaming responses  
+-  Conversation memory (multi-turn chat)  
+-  Source attribution (see which document + page answer came from)  
+-  Chunk preview (transparency into retrieved context)  
+-  Activity logging (retrieval + response tracking)  
+-  Token usage & response time tracking  
+
+---
+
+# How It Works (Architecture)
+User Query
+↓
+Retriever (Chroma Vector DB + Embeddings)
+↓
+Top-K Relevant Chunks
+↓
+Prompt Builder (Context + Chat History)
+↓
+LLM (OpenRouter - LLaMA / Mistral)
+↓
+Final Answer (with sources)
+
+# Key Highlights
+Designed a production-style RAG pipeline
+Reduced hallucinations using context-only prompting
+Implemented semantic retrieval with vector database
+Built explainable AI system with source visibility
+Optimized UX with streaming + activity logs
+Future Improvements
+Hybrid search (BM25 + Vector DB)
+Reranking with cross-encoders
+FastAPI backend for production deployment
+Docker containerization
+Cloud deployment (AWS / GCP / Render)
+
+# Connect With Me
+  Ajay Chirmade
+  Pune, India
+  LinkedIn: linkedin.com/in/ajay-chirmade-470b64105
+ 
+  GitHub: https://github.com/chirmadeajay
+
+⭐ If you like this project
+
+Give it a ⭐ on GitHub!
