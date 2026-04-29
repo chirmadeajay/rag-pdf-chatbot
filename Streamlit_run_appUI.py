@@ -1,9 +1,8 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS          # ← changed
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings   # ← changed
+from langchain_community.vectorstores import FAISS
 import tempfile
 
 st.title("🚀 Production RAG App (Multi-PDF + Memory + Sources)")
@@ -16,8 +15,8 @@ if "db" not in st.session_state:
     st.session_state.db = None
 
 if "embeddings" not in st.session_state:
-    st.session_state.embeddings = HuggingFaceEmbeddings(
-        model_name="all-MiniLM-L6-v2"
+    st.session_state.embeddings = OpenAIEmbeddings(         # ← changed
+        api_key=st.secrets["OPENAI_API_KEY"]
     )
 
 # --- File Uploader ---
@@ -51,8 +50,7 @@ if uploaded_files and st.session_state.db is None:
 
     docs = splitter.split_documents(all_docs)
 
-    # FAISS — no SQLite issues, works perfectly on Streamlit Cloud
-    db = FAISS.from_documents(                              # ← changed
+    db = FAISS.from_documents(
         docs,
         embedding=st.session_state.embeddings
     )
