@@ -52,7 +52,7 @@ if uploaded_files and st.session_state.db is None:
     )
 
     docs = splitter.split_documents(all_docs)
-
+st.write("App reached here ✅")
     db = Chroma.from_documents(
         docs,
         embedding=embeddings,
