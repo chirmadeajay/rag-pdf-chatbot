@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_core.vectorstores import InMemoryVectorStore   # ← no faiss needed
+from langchain_core.vectorstores import InMemoryVectorStore
 import tempfile
 
 st.title("🚀 RAG PDF Chatbot (100% Free)")
@@ -16,7 +16,7 @@ if "db" not in st.session_state:
 
 if "embeddings" not in st.session_state:
     st.session_state.embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="models/text-embedding-004",        # ← fixed model name
         google_api_key=st.secrets["GOOGLE_API_KEY"]
     )
 
@@ -52,7 +52,6 @@ if uploaded_files and st.session_state.db is None:
 
         docs = splitter.split_documents(all_docs)
 
-        # Pure Python in-memory store — no C++ deps, no install issues
         db = InMemoryVectorStore.from_documents(
             docs,
             embedding=st.session_state.embeddings
