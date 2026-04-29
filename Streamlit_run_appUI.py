@@ -1,8 +1,8 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_community.retrievers import BM25Retriever   # ← pure Python, no API
 import tempfile
 
 st.title("🚀 RAG PDF Chatbot (100% Free)")
@@ -11,14 +11,8 @@ st.title("🚀 RAG PDF Chatbot (100% Free)")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "db" not in st.session_state:
-    st.session_state.db = None
-
-if "embeddings" not in st.session_state:
-    st.session_state.embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",        # ← fixed model name
-        google_api_key=st.secrets["GOOGLE_API_KEY"]
-    )
+if "retriever" not in st.session_state:
+    st.session_state.retriever = None
 
 # --- File Uploader ---
 uploaded_files = st.file_uploader(
@@ -28,7 +22,7 @@ uploaded_files = st.file_uploader(
 )
 
 # --- Process Uploaded PDFs ---
-if uploaded_files and st.session_state.db is None:
+if uploaded_files and st.session_state.retriever is None:
     with st.spinner("📄 Reading and indexing your PDFs..."):
         all_docs = []
 
@@ -52,12 +46,11 @@ if uploaded_files and st.session_state.db is None:
 
         docs = splitter.split_documents(all_docs)
 
-        db = InMemoryVectorStore.from_documents(
-            docs,
-            embedding=st.session_state.embeddings
-        )
+        # BM25 — pure Python, no embeddings, no API, no install issues
+        retriever = BM25Retriever.from_documents(docs)
+        retriever.k = 4
 
-        st.session_state.db = db
+        st.session_state.retriever = retriever
         st.success("✅ PDFs indexed successfully!")
 
 # --- Free Gemini LLM ---
@@ -75,7 +68,7 @@ for msg in st.session_state.messages:
 # --- Chat Input ---
 if query := st.chat_input("Ask anything about your documents"):
 
-    if st.session_state.db is None:
+    if st.session_state.retriever is None:
         st.warning("⚠️ Please upload at least one PDF first.")
 
     else:
@@ -86,11 +79,7 @@ if query := st.chat_input("Ask anything about your documents"):
             "content": query
         })
 
-        retriever = st.session_state.db.as_retriever(
-            search_kwargs={"k": 4}
-        )
-
-        retrieved_docs = retriever.invoke(query)
+        retrieved_docs = st.session_state.retriever.invoke(query)
 
         context = ""
         sources = []
