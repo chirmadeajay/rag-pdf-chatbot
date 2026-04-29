@@ -132,7 +132,7 @@ def generate_chat_export():
         ""
     ]
     for msg in st.session_state.messages:
-        role = "You" if msg["role"] == "user" else "🤖 Assistant"
+        role = "You" if msg["role"] == "user" else "Assistant"
         lines.append(f"{role}:")
         lines.append(msg["content"])
         lines.append("-" * 40)
@@ -262,7 +262,7 @@ if uploaded_files and st.session_state.retriever is None:
             all_docs.extend(loaded_docs)
             st.write(f" Read: `{file.name}` ({len(loaded_docs)} pages)")
 
-        st.write("✂️ Splitting into chunks...")
+        st.write("Splitting into chunks...")
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
             chunk_overlap=100
@@ -270,7 +270,7 @@ if uploaded_files and st.session_state.retriever is None:
         docs = splitter.split_documents(all_docs)
         st.write(f" Created {len(docs)} text chunks")
 
-        st.write("🔍 Building search index...")
+        st.write("Building search index...")
         retriever = BM25Retriever.from_documents(docs)
         retriever.k = 6
         st.write("BM25 index ready")
@@ -331,7 +331,7 @@ for msg in st.session_state.messages:
 # ─────────────────────────────────────────
 # CHAT INPUT + RESPONSE
 # ─────────────────────────────────────────
-if query := st.chat_input("💬 Ask anything about your documents..."):
+if query := st.chat_input("Ask anything about your documents..."):
 
     if st.session_state.retriever is None:
         st.warning("Please upload at least one PDF using the sidebar.")
