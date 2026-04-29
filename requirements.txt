@@ -1,9 +1,6 @@
-streamlit==1.45.0
-langchain==0.3.25
-langchain-community==0.3.24
-langchain-core==0.3.58
-langchain-text-splitters==0.3.8
-langchain-openai==0.3.16
-faiss-cpu==1.9.0
-pypdf==5.4.0
-openai==1.77.0
+streamlit==1.32.0
+pypdf==4.2.0
+scikit-learn==1.4.2
+numpy==1.26.4
+langchain-openai==0.1.22
+openai==1.30.1
