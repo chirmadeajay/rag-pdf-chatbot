@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_core.vectorstores import InMemoryVectorStore   # ← no faiss needed
 import tempfile
 
 st.title("🚀 RAG PDF Chatbot (100% Free)")
@@ -52,7 +52,8 @@ if uploaded_files and st.session_state.db is None:
 
         docs = splitter.split_documents(all_docs)
 
-        db = FAISS.from_documents(
+        # Pure Python in-memory store — no C++ deps, no install issues
+        db = InMemoryVectorStore.from_documents(
             docs,
             embedding=st.session_state.embeddings
         )
