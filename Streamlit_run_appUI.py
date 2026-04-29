@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS          # ← changed
 from langchain_openai import ChatOpenAI
 import tempfile
 
@@ -51,8 +51,8 @@ if uploaded_files and st.session_state.db is None:
 
     docs = splitter.split_documents(all_docs)
 
-    # In-memory Chroma (no persist_directory — works on Streamlit Cloud)
-    db = Chroma.from_documents(
+    # FAISS — no SQLite issues, works perfectly on Streamlit Cloud
+    db = FAISS.from_documents(                              # ← changed
         docs,
         embedding=st.session_state.embeddings
     )
@@ -96,10 +96,8 @@ if query := st.chat_input("Ask anything about your documents"):
 
         for doc in retrieved_docs:
             context += doc.page_content + "\n\n"
-
             page = doc.metadata.get("page", "Unknown")
             source = doc.metadata.get("source", "Unknown file")
-
             sources.append(f"{source} - Page {page}")
 
         history = "\n".join([
@@ -130,7 +128,6 @@ Question:
             st.write(answer)
 
             unique_sources = sorted(list(set(sources)))
-
             st.markdown("### 📊 Sources:")
             for src in unique_sources:
                 st.write("-", src)
