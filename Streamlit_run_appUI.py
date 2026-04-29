@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI
 import tempfile
@@ -24,7 +24,10 @@ uploaded_files = st.file_uploader(
 )
 
 # Embeddings
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    api_key=st.secrets["OPENAI_API_KEY"]
+)
 
 # Process uploaded PDFs
 if uploaded_files and st.session_state.db is None:
