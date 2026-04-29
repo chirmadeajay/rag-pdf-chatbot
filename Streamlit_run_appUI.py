@@ -4,7 +4,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
 from langchain_community.retrievers import BM25Retriever
 import tempfile
-import datetime  # ← NEW: used to timestamp the downloaded file
+import datetime
+import time      # ← NEW: used to measure how long things take
 
 # ─────────────────────────────────────────
 # PAGE CONFIG
@@ -43,8 +44,6 @@ st.markdown("""
             border-radius: 12px;
             padding: 10px;
         }
-
-        /* Style the download button */
         .stDownloadButton button {
             width: 100%;
             background-color: #1e3a5f;
@@ -52,14 +51,28 @@ st.markdown("""
             border-radius: 8px;
             border: 1px solid #2d5a8e;
         }
-        .stDownloadButton button:hover {
-            background-color: #2d5a8e;
-        }
-
-        /* Style reset button */
+        .stDownloadButton button:hover { background-color: #2d5a8e; }
         .stButton button {
             width: 100%;
             border-radius: 8px;
+        }
+
+        /* NEW: Style for chunk preview cards */
+        .chunk-card {
+            background-color: #1a1f2e;
+            border-left: 3px solid #7eb8f7;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 6px 0;
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        /* NEW: Style for activity log entries */
+        .log-entry {
+            font-size: 12px;
+            color: #888;
+            padding: 2px 0;
         }
 
         footer { visibility: hidden; }
@@ -68,7 +81,7 @@ st.markdown("""
 
 
 # ─────────────────────────────────────────
-# SESSION STATE — initialize all variables
+# SESSION STATE
 # ─────────────────────────────────────────
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -76,60 +89,65 @@ if "messages" not in st.session_state:
 if "retriever" not in st.session_state:
     st.session_state.retriever = None
 
-# ── NEW: Track uploaded file names ──
-# So we can show them in the sidebar file manager
 if "uploaded_file_names" not in st.session_state:
     st.session_state.uploaded_file_names = []
 
-# ── NEW: Track question count ──
 if "question_count" not in st.session_state:
     st.session_state.question_count = 0
 
+# ── NEW: Activity log ──
+# A list that stores recent actions like a diary
+# We append to it and show the last 5 entries
+if "activity_log" not in st.session_state:
+    st.session_state.activity_log = []
+
 
 # ─────────────────────────────────────────
-# NEW HELPER FUNCTION: Generate download text
-# A function is a reusable block of code
-# This one converts chat history to a string
+# NEW HELPER: Add to activity log
+# Adds a timestamped entry to the log list
+# ─────────────────────────────────────────
+def log_activity(message):
+    """
+    Adds a message with current time to the log.
+    We keep only the last 8 entries to avoid clutter.
+    """
+    now = datetime.datetime.now().strftime("%H:%M:%S")
+    entry = f"[{now}] {message}"
+    st.session_state.activity_log.append(entry)
+    # Keep only last 8 entries
+    st.session_state.activity_log = st.session_state.activity_log[-8:]
+
+
+# ─────────────────────────────────────────
+# HELPER: Generate chat export
 # ─────────────────────────────────────────
 def generate_chat_export():
-    """
-    Converts chat messages into a neat text file.
-    datetime.now() adds the current time as a header.
-    """
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "=" * 50,
-        f"RAG PDF Chatbot - Chat Export",
+        "RAG PDF Chatbot - Chat Export",
         f"Exported: {now}",
         f"PDFs used: {', '.join(st.session_state.uploaded_file_names)}",
         "=" * 50,
         ""
     ]
-
     for msg in st.session_state.messages:
         role = "🧑 You" if msg["role"] == "user" else "🤖 Assistant"
         lines.append(f"{role}:")
         lines.append(msg["content"])
         lines.append("-" * 40)
-
-    # "\n".join() connects all lines with a newline character
     return "\n".join(lines)
 
 
 # ─────────────────────────────────────────
-# NEW HELPER FUNCTION: Reset everything
-# Called when user wants to start fresh
+# HELPER: Reset app
 # ─────────────────────────────────────────
 def reset_app():
-    """
-    Clears all session state so user can
-    upload new PDFs and start a fresh chat.
-    st.rerun() refreshes the page after reset.
-    """
     st.session_state.messages = []
     st.session_state.retriever = None
     st.session_state.uploaded_file_names = []
     st.session_state.question_count = 0
+    st.session_state.activity_log = []
     st.rerun()
 
 
@@ -150,55 +168,49 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # ── Show loaded files or prompt to upload ──
     if st.session_state.retriever:
         st.success("✅ PDFs ready to chat!")
 
-        # ── NEW: File list ──
-        # Shows each uploaded file name with an icon
         st.markdown("**📋 Loaded Files:**")
         for fname in st.session_state.uploaded_file_names:
             st.markdown(f"- 📄 `{fname}`")
 
         st.markdown("---")
 
-        # ── NEW: Stats row ──
-        # col1, col2 splits the sidebar into 2 columns
         col1, col2 = st.columns(2)
         with col1:
-            st.metric(
-                label="💬 Questions",
-                value=st.session_state.question_count
-            )
+            st.metric("💬 Questions", st.session_state.question_count)
         with col2:
-            st.metric(
-                label="📄 Files",
-                value=len(st.session_state.uploaded_file_names)
-            )
+            st.metric("📄 Files", len(st.session_state.uploaded_file_names))
 
         st.markdown("---")
 
-        # ── NEW: Download chat button ──
-        # Only shows if there are messages to download
+        # ── NEW: Activity log section ──
+        # Shows a live feed of what the app has done
+        if st.session_state.activity_log:
+            st.markdown("**🕐 Activity Log:**")
+            for entry in reversed(st.session_state.activity_log):
+                st.markdown(
+                    f"<div class='log-entry'>{entry}</div>",
+                    unsafe_allow_html=True
+                )
+            st.markdown("---")
+
         if st.session_state.messages:
             chat_text = generate_chat_export()
-
-            # st.download_button creates a download link
-            # The file is generated in memory, no saving needed
             st.download_button(
                 label="⬇️ Download Chat",
                 data=chat_text,
-                file_name=f"chat_export_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                file_name=f"chat_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                 mime="text/plain"
             )
 
-        # ── NEW: Clear chat only (keep PDFs loaded) ──
         if st.button("🗑️ Clear Chat Only"):
             st.session_state.messages = []
             st.session_state.question_count = 0
+            log_activity("Chat cleared")
             st.rerun()
 
-        # ── NEW: Full reset (clears PDFs too) ──
         if st.button("🔄 Upload New PDFs"):
             reset_app()
 
@@ -225,11 +237,17 @@ st.markdown("""
 
 # ─────────────────────────────────────────
 # PROCESS UPLOADED PDFs
+# NEW: Added step-by-step status messages
+# so user knows what is happening
 # ─────────────────────────────────────────
 if uploaded_files and st.session_state.retriever is None:
-    with st.spinner("📄 Reading and indexing your PDFs..."):
+
+    # st.status() is a live updating box that shows steps
+    # Each "st.write()" inside it adds a new step line
+    with st.status("📄 Processing your PDFs...", expanded=True) as status:
         all_docs = []
 
+        st.write("📂 Reading PDF files...")
         for file in uploaded_files:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(file.read())
@@ -242,31 +260,46 @@ if uploaded_files and st.session_state.retriever is None:
                 doc.metadata["source"] = file.name
 
             all_docs.extend(loaded_docs)
+            st.write(f"  ✅ Read: `{file.name}` ({len(loaded_docs)} pages)")
 
+        st.write("✂️ Splitting into chunks...")
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
             chunk_overlap=100
         )
-
         docs = splitter.split_documents(all_docs)
+        st.write(f"  ✅ Created {len(docs)} text chunks")
 
+        st.write("🔍 Building search index...")
         retriever = BM25Retriever.from_documents(docs)
         retriever.k = 6
+        st.write("  ✅ BM25 index ready")
 
         st.session_state.retriever = retriever
+        st.session_state.uploaded_file_names = [f.name for f in uploaded_files]
 
-        # ── NEW: Save file names to session state ──
-        st.session_state.uploaded_file_names = [
-            f.name for f in uploaded_files
-        ]
+        # Mark the status box as complete — turns green
+        status.update(
+            label=f"✅ {len(uploaded_files)} PDF(s) indexed successfully!",
+            state="complete",
+            expanded=False
+        )
 
-        st.sidebar.success(f"✅ {len(uploaded_files)} PDF(s) indexed!")
+        log_activity(f"Indexed {len(uploaded_files)} PDF(s), {len(docs)} chunks")
 
 
 # ─────────────────────────────────────────
-# NEW: WELCOME SCREEN
-# Shows when no PDFs are uploaded yet
-# Instead of a blank/confusing empty page
+# GROQ LLM
+# ─────────────────────────────────────────
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    api_key=st.secrets["GROQ_API_KEY"],
+    temperature=0.1
+)
+
+
+# ─────────────────────────────────────────
+# WELCOME SCREEN
 # ─────────────────────────────────────────
 if not st.session_state.retriever:
     st.markdown("""
@@ -285,15 +318,6 @@ if not st.session_state.retriever:
             </p>
         </div>
     """, unsafe_allow_html=True)
-
-# ─────────────────────────────────────────
-# GROQ LLM
-# ─────────────────────────────────────────
-llm = ChatGroq(
-    model="llama-3.1-8b-instant",
-    api_key=st.secrets["GROQ_API_KEY"],
-    temperature=0.1
-)
 
 
 # ─────────────────────────────────────────
@@ -318,20 +342,48 @@ if query := st.chat_input("💬 Ask anything about your documents..."):
             "role": "user",
             "content": query
         })
-
-        # ── NEW: Increment question counter ──
         st.session_state.question_count += 1
+        log_activity(f"Question #{st.session_state.question_count} asked")
+
+        # ── NEW: Step indicators while processing ──
+        # These placeholders update in real time
+        # Think of them as temporary text boxes
+        step_placeholder = st.empty()
+
+        # STEP 1: Show searching message
+        step_placeholder.info("🔍 Step 1/3 — Searching your documents...")
+        time.sleep(0.3)   # tiny pause so user can read it
 
         retrieved_docs = st.session_state.retriever.invoke(query)
+        log_activity(f"Retrieved {len(retrieved_docs)} chunks")
 
         context = ""
         sources = []
+        chunk_previews = []   # ← NEW: store text previews of found chunks
 
-        for doc in retrieved_docs:
+        for i, doc in enumerate(retrieved_docs):
             context += doc.page_content + "\n\n"
             page = doc.metadata.get("page", "Unknown")
             source = doc.metadata.get("source", "Unknown file")
             sources.append(f"📄 {source} — Page {page}")
+
+            # Save first 200 characters of each chunk for preview
+            # This is what gets shown in the "What was found" section
+            chunk_previews.append({
+                "source": source,
+                "page": page,
+                "preview": doc.page_content[:200] + "..."
+            })
+
+        # STEP 2: Building prompt message
+        step_placeholder.info("🧠 Step 2/3 — Building context for AI...")
+        time.sleep(0.3)
+
+        # ── NEW: Estimate token count ──
+        # Tokens are roughly 4 characters each in English
+        # This is an estimate, not exact
+        estimated_tokens = len(context) // 4
+        log_activity(f"Context: ~{estimated_tokens} tokens")
 
         recent_history = st.session_state.messages[-5:]
         history_text = "\n".join([
@@ -360,12 +412,17 @@ USER QUESTION: {query}
 
 YOUR ANSWER:"""
 
+        # STEP 3: Generating answer
+        step_placeholder.info("⚡ Step 3/3 — Generating answer...")
+
+        # Record start time to measure speed
+        start_time = time.time()
+
         with st.chat_message("assistant"):
             response_placeholder = st.empty()
             full_answer = ""
 
-            with st.spinner("🤔 Thinking..."):
-                stream = llm.stream(prompt)
+            stream = llm.stream(prompt)
 
             for chunk in stream:
                 full_answer += chunk.content
@@ -373,10 +430,42 @@ YOUR ANSWER:"""
 
             response_placeholder.markdown(full_answer)
 
+            # Calculate how long it took
+            elapsed = round(time.time() - start_time, 1)
+            log_activity(f"Answer generated in {elapsed}s")
+
+            # ── NEW: Info bar below answer ──
+            # Shows token estimate and time taken
+            st.markdown(
+                f"<div style='font-size:12px; color:#555; margin-top:8px;'>"
+                f"⏱️ {elapsed}s &nbsp;|&nbsp; "
+                f"📊 ~{estimated_tokens} tokens used &nbsp;|&nbsp; "
+                f"📎 {len(retrieved_docs)} chunks retrieved"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+            # ── NEW: Chunk preview expander ──
+            # Shows the actual text that was found and used
+            with st.expander("🔎 What was found in your PDFs"):
+                for i, chunk in enumerate(chunk_previews):
+                    st.markdown(
+                        f"<div class='chunk-card'>"
+                        f"<strong>Chunk {i+1}</strong> — "
+                        f"📄 {chunk['source']} | Page {chunk['page']}<br><br>"
+                        f"{chunk['preview']}"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+            # Sources expander
             unique_sources = sorted(list(set(sources)))
             with st.expander("📚 View Sources"):
                 for src in unique_sources:
                     st.markdown(f"- {src}")
+
+        # Clear the step indicator now that we're done
+        step_placeholder.empty()
 
         st.session_state.messages.append({
             "role": "assistant",
