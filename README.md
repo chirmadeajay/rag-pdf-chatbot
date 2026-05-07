@@ -78,6 +78,6 @@ Cloud deployment (AWS / GCP / Render)
   LinkedIn: linkedin.com/in/ajay-chirmade-470b64105
   GitHub: https://github.com/chirmadeajay
 
-⭐ If you like this project
+If you like this project
 
 Give it a ⭐ on GitHub!
